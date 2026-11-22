@@ -1,6 +1,6 @@
 import express from "express";
 import { HttpError } from "./errors.js";
-import { parseId, parseSnippetInput } from "./validate.js";
+import { parseId, parseListQuery, parseSnippetInput } from "./validate.js";
 import { createSnippetRepository } from "./repository.js";
 
 /** Build the Express app around a SQLite database handle. */
@@ -17,8 +17,12 @@ export function createApp(db) {
     res.status(201).json(repo.create(data));
   });
 
-  app.get("/snippets", (_req, res) => {
-    res.json({ data: repo.list() });
+  app.get("/snippets", (req, res) => {
+    res.json(repo.list(parseListQuery(req.query)));
+  });
+
+  app.get("/tags", (_req, res) => {
+    res.json({ data: repo.listTags() });
   });
 
   app.get("/snippets/:id", (req, res) => {
