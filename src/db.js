@@ -13,6 +13,25 @@ CREATE TABLE IF NOT EXISTS snippets (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS tags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS snippet_tags (
+  snippet_id INTEGER NOT NULL REFERENCES snippets(id) ON DELETE CASCADE,
+  tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (snippet_id, tag_id)
+);
+CREATE INDEX IF NOT EXISTS idx_snippet_tags_tag ON snippet_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_snippets_language ON snippets(language);
+
+-- Full-text index; rowid mirrors snippets.id and is kept in sync by the repository.
+CREATE VIRTUAL TABLE IF NOT EXISTS snippets_fts USING fts5(
+  title, description, code, tags,
+  tokenize = 'unicode61 remove_diacritics 2'
+);
 `;
 
 /** Open (and migrate) a SQLite database. Use ":memory:" for tests. */
