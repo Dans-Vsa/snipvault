@@ -14,8 +14,7 @@ export function extractApiKey(req) {
 
 /**
  * Express middleware requiring a valid API key. With an empty key list auth is
- * disabled (open mode). Keys are compared in constant time. On success the
- * presented key is stored in `req.apiKey` (used by the rate limiter).
+ * disabled (open mode). Keys are compared in constant time.
  */
 export function apiKeyAuth(keys = []) {
   const digests = keys.map(digest);
@@ -28,7 +27,6 @@ export function apiKeyAuth(keys = []) {
     let ok = false;
     for (const d of digests) ok = timingSafeEqual(d, candidate) || ok;
     if (!ok) return next(new HttpError(401, "Invalid API key"));
-    req.apiKey = presented;
     next();
   };
 }

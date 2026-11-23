@@ -1,8 +1,8 @@
 import { HttpError } from "./errors.js";
 
 /**
- * Fixed-window in-memory rate limiter. Clients are identified by API key when
- * present, otherwise by IP. `max <= 0` disables limiting.
+ * Fixed-window in-memory rate limiter keyed by client IP. It runs before auth so
+ * key guessing is throttled too. `max <= 0` disables limiting.
  * Adds `X-RateLimit-Limit/Remaining/Reset` headers and answers 429 with `Retry-After`.
  */
 export function rateLimit({ max = 100, windowMs = 60_000, now = Date.now } = {}) {
@@ -18,7 +18,7 @@ export function rateLimit({ max = 100, windowMs = 60_000, now = Date.now } = {})
 
   return (req, res, next) => {
     const t = now();
-    const id = req.apiKey ? `key:${req.apiKey}` : `ip:${req.ip}`;
+    const id = req.ip;
     let entry = hits.get(id);
     if (!entry || entry.resetAt <= t) {
       entry = { count: 0, resetAt: t + windowMs };
