@@ -1,16 +1,42 @@
 import express from "express";
 import { HttpError } from "./errors.js";
-import { parseId, parseListQuery, parseSnippetInput } from "./validate.js";
+import { parseId, parseImport, parseListQuery, parseSnippetInput } from "./validate.js";
 import { createSnippetRepository } from "./repository.js";
+import { apiKeyAuth } from "./auth.js";
+import { rateLimit } from "./ratelimit.js";
+import { buildOpenApiSpec, DOCS_HTML } from "./openapi.js";
 
-/** Build the Express app around a SQLite database handle. */
-export function createApp(db) {
+/**
+ * Build the Express app around a SQLite database handle.
+ * @param {object} [options]
+ * @param {string[]} [options.apiKeys]   Accepted API keys; empty = auth disabled.
+ * @param {number}   [options.rateLimitMax]      Requests per window per IP; 0 = unlimited.
+ * @param {number}   [options.rateLimitWindowMs] Window length in ms (default 60000).
+ */
+export function createApp(db, { apiKeys = [], rateLimitMax = 0, rateLimitWindowMs = 60_000 } = {}) {
   const repo = createSnippetRepository(db);
   const app = express();
   app.disable("x-powered-by");
-  app.use(express.json({ limit: "512kb" }));
+  app.set("trust proxy", false);
+  app.use(rateLimit({ max: rateLimitMax, windowMs: rateLimitWindowMs }));
+  app.use(express.json({ limit: "5mb" }));
 
+  // Public routes
   app.get("/health", (_req, res) => res.json({ status: "ok" }));
+  app.get("/openapi.json", (_req, res) => res.json(buildOpenApiSpec()));
+  app.get("/docs", (_req, res) => res.type("html").send(DOCS_HTML));
+
+  // Everything below requires an API key (when keys are configured)
+  app.use(apiKeyAuth(apiKeys));
+
+  app.get("/export", (_req, res) => {
+    res.set("Content-Disposition", 'attachment; filename="snipvault-export.json"');
+    res.json({ version: 1, exportedAt: new Date().toISOString(), snippets: repo.exportAll() });
+  });
+
+  app.post("/import", (req, res) => {
+    res.json({ imported: repo.importMany(parseImport(req.body)) });
+  });
 
   app.post("/snippets", (req, res) => {
     const data = parseSnippetInput(req.body);
