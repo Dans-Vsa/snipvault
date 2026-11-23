@@ -78,23 +78,47 @@ export function createSnippetRepository(db) {
     ftsInsert.run(id, row.title, row.description, row.code, getTags(id).join(" "));
   }
 
+  function insertSnippet(data) {
+    const now = new Date().toISOString();
+    const res = insert.run(
+      data.title,
+      data.language ?? "text",
+      data.code,
+      data.description ?? "",
+      data.favorite ? 1 : 0,
+      now,
+      now,
+    );
+    const id = Number(res.lastInsertRowid);
+    setTags(id, data.tags ?? []);
+    reindex(id);
+    return id;
+  }
+
   const repo = {
     create(data) {
+      const id = transaction(() => insertSnippet(data));
+      return repo.get(id);
+    },
+    /** Every snippet in id order, as plain importable objects. */
+    exportAll() {
+      return db
+        .prepare("SELECT * FROM snippets ORDER BY id")
+        .all()
+        .map((r) => ({
+          title: r.title,
+          language: r.language,
+          code: r.code,
+          description: r.description,
+          favorite: Boolean(r.favorite),
+          tags: getTags(r.id),
+        }));
+    },
+    /** Insert many snippets atomically; returns how many were created. */
+    importMany(items) {
       return transaction(() => {
-        const now = new Date().toISOString();
-        const res = insert.run(
-          data.title,
-          data.language ?? "text",
-          data.code,
-          data.description ?? "",
-          data.favorite ? 1 : 0,
-          now,
-          now,
-        );
-        const id = Number(res.lastInsertRowid);
-        setTags(id, data.tags ?? []);
-        reindex(id);
-        return repo.get(id);
+        for (const item of items) insertSnippet(item);
+        return items.length;
       });
     },
     get(id) {

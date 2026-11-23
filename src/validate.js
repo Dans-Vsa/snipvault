@@ -124,4 +124,28 @@ export function parseListQuery(query) {
   return out;
 }
 
+const MAX_IMPORT = 1000;
+
+/** Validate an export document (`{ snippets: [...] }`); every snippet must be valid. */
+export function parseImport(body) {
+  if (body === null || typeof body !== "object" || !Array.isArray(body.snippets)) {
+    throw new HttpError(400, "Body must be an object with a snippets array");
+  }
+  if (body.snippets.length > MAX_IMPORT) {
+    throw new HttpError(400, `At most ${MAX_IMPORT} snippets can be imported at once`);
+  }
+  const errors = [];
+  const items = [];
+  body.snippets.forEach((raw, i) => {
+    try {
+      items.push(parseSnippetInput(raw));
+    } catch (e) {
+      if (!(e instanceof HttpError)) throw e;
+      for (const d of e.details ?? [e.message]) errors.push(`snippets[${i}]: ${d}`);
+    }
+  });
+  if (errors.length) throw new HttpError(400, "Validation failed", errors.slice(0, 50));
+  return items;
+}
+
 export { SORTS };
