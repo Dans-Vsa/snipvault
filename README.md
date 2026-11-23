@@ -3,7 +3,7 @@
 A tiny self-hosted REST API for storing, tagging and searching code snippets.
 Built with Node.js, Express 5 and the built-in `node:sqlite` module — a single runtime dependency, no native compilation.
 
-> Status: **work in progress** (milestone 2 of 4).
+> Status: **work in progress** (milestone 3 of 4).
 
 ## Features
 
@@ -14,7 +14,9 @@ Built with Node.js, Express 5 and the built-in `node:sqlite` module — a single
 - [x] Tags (many-to-many, normalised, max 10 per snippet) and `GET /tags` usage counts
 - [x] Full-text search (SQLite FTS5, BM25 ranking, prefix matching, safe query syntax)
 - [x] Filtering by language / favorite / tag(s), sorting and pagination
-- [ ] API-key auth, rate limiting, OpenAPI docs, JSON export/import
+- [x] API-key auth (`X-API-Key` / Bearer, constant-time compare), per-IP rate limiting
+- [x] OpenAPI 3 spec (`/openapi.json`) and Swagger UI (`/docs`)
+- [x] JSON export / atomic import
 - [ ] Docker image, CI, v1.0.0
 
 ## Tech stack
@@ -37,6 +39,9 @@ Environment variables:
 |-----------|---------------------|--------------------------|
 | `PORT`    | `3000`              | HTTP port                |
 | `DB_PATH` | `data/snipvault.db` | SQLite database location |
+| `API_KEYS` | _(empty)_          | Comma-separated accepted API keys. Empty = auth disabled (a warning is printed) |
+| `RATE_LIMIT_MAX` | `100`        | Requests per window per IP; `0` disables limiting |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Rate-limit window length in ms |
 
 ## API
 
@@ -49,6 +54,32 @@ Environment variables:
 | GET    | `/snippets/:id`  | Fetch one snippet                   |
 | PATCH  | `/snippets/:id`  | Partially update a snippet          |
 | DELETE | `/snippets/:id`  | Delete a snippet                    |
+| GET    | `/export`        | Download all snippets as JSON       |
+| POST   | `/import`        | Import an export document (atomic, max 1000) |
+| GET    | `/openapi.json`  | OpenAPI 3 description (public)      |
+| GET    | `/docs`          | Swagger UI (public)                 |
+
+### Authentication and rate limiting
+
+Set `API_KEYS=key1,key2` and send a key with every request (except `/health`, `/docs`, `/openapi.json`):
+
+```bash
+API_KEYS=s3cret npm start
+curl -H "X-API-Key: s3cret" localhost:3000/snippets
+curl -H "Authorization: Bearer s3cret" localhost:3000/export > backup.json
+```
+
+Responses carry `X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset`; once exceeded the API
+answers `429` with `Retry-After`. The limiter is in-memory and per process; it runs before auth so key guessing is throttled.
+
+### Backup and restore
+
+```bash
+curl -H "X-API-Key: s3cret" localhost:3000/export > backup.json
+curl -X POST -H "X-API-Key: s3cret" -H "content-type: application/json" --data-binary @backup.json localhost:3000/import
+```
+
+Import validates every snippet first and inserts all of them in one transaction (nothing is imported on error).
 
 ### `GET /snippets` query parameters
 
@@ -90,8 +121,11 @@ src/
   db.js           SQLite connection, schema, FTS5 index
   repository.js   Data-access layer (tags, search, filters)
   validate.js     Request + query validation
+  auth.js         API-key middleware
+  ratelimit.js    Fixed-window rate limiter
+  openapi.js      OpenAPI spec + docs page
   errors.js       HttpError class
-test/             node:test integration tests (CRUD, tags, search, pagination)
+test/             node:test integration tests (CRUD, tags, search, auth, rate limit, export/import, OpenAPI)
 ```
 
 ## License
