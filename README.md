@@ -3,7 +3,9 @@
 A tiny self-hosted REST API for storing, tagging and searching code snippets.
 Built with Node.js, Express 5 and the built-in `node:sqlite` module — a single runtime dependency, no native compilation.
 
-> Status: **work in progress** (milestone 3 of 4).
+[![CI](https://github.com/Dans-Vsa/snipvault/actions/workflows/ci.yml/badge.svg)](https://github.com/Dans-Vsa/snipvault/actions/workflows/ci.yml)
+
+> Status: **v1.0.0** - feature complete. See the [changelog](CHANGELOG.md).
 
 ## Features
 
@@ -17,7 +19,19 @@ Built with Node.js, Express 5 and the built-in `node:sqlite` module — a single
 - [x] API-key auth (`X-API-Key` / Bearer, constant-time compare), per-IP rate limiting
 - [x] OpenAPI 3 spec (`/openapi.json`) and Swagger UI (`/docs`)
 - [x] JSON export / atomic import
-- [ ] Docker image, CI, v1.0.0
+- [x] Docker image, docker-compose, GitHub Actions CI (Node 22/24), graceful shutdown
+- [x] v1.0.0
+
+## Docker
+
+```bash
+docker build -t snipvault .
+docker run -d -p 3000:3000 -e API_KEYS=change-me -v snipvault-data:/data snipvault
+# or
+API_KEYS=change-me docker compose up -d
+```
+
+The database lives in the `/data` volume; the container runs as an unprivileged user and has a built-in healthcheck.
 
 ## Tech stack
 
@@ -125,6 +139,10 @@ src/
   ratelimit.js    Fixed-window rate limiter
   openapi.js      OpenAPI spec + docs page
   errors.js       HttpError class
+  version.js      Package version helper
+Dockerfile, docker-compose.yml   Container setup
+.github/workflows/ci.yml        CI pipeline
+CHANGELOG.md
 test/             node:test integration tests (CRUD, tags, search, auth, rate limit, export/import, OpenAPI)
 ```
 
