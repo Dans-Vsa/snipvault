@@ -5,6 +5,7 @@ import { createSnippetRepository } from "./repository.js";
 import { apiKeyAuth } from "./auth.js";
 import { rateLimit } from "./ratelimit.js";
 import { buildOpenApiSpec, DOCS_HTML } from "./openapi.js";
+import { VERSION } from "./version.js";
 
 /**
  * Build the Express app around a SQLite database handle.
@@ -22,8 +23,8 @@ export function createApp(db, { apiKeys = [], rateLimitMax = 0, rateLimitWindowM
   app.use(express.json({ limit: "5mb" }));
 
   // Public routes
-  app.get("/health", (_req, res) => res.json({ status: "ok" }));
-  app.get("/openapi.json", (_req, res) => res.json(buildOpenApiSpec()));
+  app.get("/health", (_req, res) => res.json({ status: "ok", version: VERSION }));
+  app.get("/openapi.json", (_req, res) => res.json(buildOpenApiSpec({ version: VERSION })));
   app.get("/docs", (_req, res) => res.type("html").send(DOCS_HTML));
 
   // Everything below requires an API key (when keys are configured)

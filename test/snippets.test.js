@@ -13,7 +13,8 @@ const sample = { title: "Reverse string", language: "JavaScript", code: "[...s].
 test("health check", async () => {
   const r = await srv.request("GET", "/health");
   assert.equal(r.status, 200);
-  assert.deepEqual(r.body, { status: "ok" });
+  assert.equal(r.body.status, "ok");
+  assert.match(r.body.version, /^\d+\.\d+\.\d+/);
 });
 
 test("create + fetch a snippet", async () => {

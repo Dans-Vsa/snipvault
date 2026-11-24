@@ -8,6 +8,7 @@ test("/openapi.json describes every route and resolves its $refs", async () => {
     const { status, body } = await srv.request("GET", "/openapi.json");
     assert.equal(status, 200);
     assert.equal(body.openapi, "3.0.3");
+    assert.equal(body.info.version, (await srv.request("GET", "/health")).body.version);
     for (const path of ["/health", "/snippets", "/snippets/{id}", "/tags", "/export", "/import"]) {
       assert.ok(body.paths[path], `missing ${path}`);
     }
