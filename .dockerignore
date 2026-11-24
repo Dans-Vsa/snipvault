@@ -1,0 +1,10 @@
+node_modules
+data
+*.db
+.git
+.github
+test
+.env
+DESIGN.md
+Dockerfile
+README.md

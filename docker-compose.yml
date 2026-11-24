@@ -1,0 +1,15 @@
+services:
+  snipvault:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Comma-separated list of accepted API keys. Leave empty to disable auth (not recommended).
+      API_KEYS: ${API_KEYS:-}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+    volumes:
+      - snipvault-data:/data
+    restart: unless-stopped
+
+volumes:
+  snipvault-data:
